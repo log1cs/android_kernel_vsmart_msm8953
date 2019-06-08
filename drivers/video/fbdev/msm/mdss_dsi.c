@@ -47,6 +47,8 @@ static struct mdss_dsi_data *mdss_dsi_res;
 
 static struct pm_qos_request mdss_dsi_pm_qos_request;
 
+extern int gesture_mode_enable;
+
 void mdss_dump_dsi_debug_bus(u32 bus_dump_flag,
 	u32 **dump_mem)
 {
@@ -418,7 +420,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	if (gpio_is_valid(ctrl_pdata->vdd_ext_gpio)) {
+	if ((gesture_mode_enable == 0) && gpio_is_valid(ctrl_pdata->vdd_ext_gpio)) {
 		ret = gpio_direction_output(
 				ctrl_pdata->vdd_ext_gpio, 1);
 		usleep_range(3000, 4000); /* h/w recommended delay */
@@ -4213,6 +4215,11 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 		"qcom,ext-vdd-gpio", 0);
 	if (!gpio_is_valid(ctrl_pdata->vdd_ext_gpio))
 		pr_info("%s: ext vdd gpio not specified\n", __func__);
+
+	ctrl_pdata->tp_rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+		"vsm,tp-rst-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->tp_rst_gpio))
+		pr_info("%s: tp rst gpio not specified\n", __func__);
 
 	ctrl_pdata->rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 			 "qcom,platform-reset-gpio", 0);

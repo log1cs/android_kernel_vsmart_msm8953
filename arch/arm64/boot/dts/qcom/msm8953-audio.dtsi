@@ -52,7 +52,7 @@
 		qcom,msm-mclk-freq = <9600000>;
 		qcom,msm-mbhc-hphl-swh = <0>;
 		qcom,msm-mbhc-gnd-swh = <0>;
-		qcom,msm-hs-micbias-type = "internal";
+		qcom,msm-hs-micbias-type = "external";
 		qcom,msm-micbias1-ext-cap;
 
 		qcom,audio-routing =
@@ -186,8 +186,8 @@
 	wsa881x_analog_vi_gpio: wsa881x_analog_vi_pctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";
-		pinctrl-0 = <&wsa_vi_on>;
-		pinctrl-1 = <&wsa_vi_off>;
+	//	pinctrl-0 = <&wsa_vi_on>;
+	//	pinctrl-1 = <&wsa_vi_off>;
 	};
 	wsa881x_analog_clk_gpio: wsa881x_analog_clk_pctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
@@ -198,8 +198,8 @@
 	wsa881x_analog_reset_gpio: wsa881x_analog_reset_pctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";
-		pinctrl-0 = <&wsa_reset_on>;
-		pinctrl-1 = <&wsa_reset_off>;
+	//	pinctrl-0 = <&wsa_reset_on>;
+	//	pinctrl-1 = <&wsa_reset_off>;
 	};
 
 	ext_codec: sound-9335 {

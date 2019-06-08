@@ -22,6 +22,7 @@
 #include <linux/qpnp/pwm.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include <linux/regulator/consumer.h>
 
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
@@ -30,12 +31,15 @@
 #endif
 #include "mdss_debug.h"
 
+
 #define DT_CMD_HDR 6
 #define DEFAULT_MDP_TRANSFER_TIME 14000
 
 #define VSYNC_DELAY msecs_to_jiffies(17)
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
+
+extern int gesture_mode_enable;
 
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -71,9 +75,10 @@ end:
 static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
 	int ret;
+//	int ret_reg = 0;
 	u32 duty;
 	u32 period_ns;
-
+//	struct regulator *reg;
 	if (ctrl->pwm_bl == NULL) {
 		pr_err("%s: no PWM\n", __func__);
 		return;
@@ -89,6 +94,21 @@ static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 			pwm_disable(ctrl->pwm_bl);
 		}
 		ctrl->pwm_enabled = 0;
+#if 0
+		reg = regulator_get(NULL,"lcdb_ldo");
+		if(reg)
+			{
+			ret_reg = regulator_disable(reg);
+			regulator_put(reg);
+			}
+
+		reg = regulator_get(NULL,"lcdb_ncp");
+		if(reg)
+			{
+			ret_reg = regulator_disable(reg);
+			regulator_put(reg);
+			}
+#endif
 		return;
 	}
 
@@ -364,7 +384,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *pinfo = NULL;
-	int i, rc = 0;
+	int i, rc = 0, rc_tp = 0;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -445,23 +465,45 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				usleep_range(100, 110);
 			}
 
+			/* For TP exit gesture mode */
+			if (gpio_is_valid(ctrl_pdata->tp_rst_gpio)) {
+				rc_tp = gpio_request(ctrl_pdata->tp_rst_gpio, "tp_rst_gpio");
+				if (rc_tp) {
+					pr_err("FTS: request tp rst gpio failed, rc_tp =%d\n", rc_tp);
+				} else {
+					if (gesture_mode_enable == 1) {
+					gpio_set_value(ctrl_pdata->tp_rst_gpio, 1);
+					usleep_range(5000, 5005);
+					pr_debug("FTS: set TP_RST 0\n");
+					}
+				}
+			}
 			if (pdata->panel_info.rst_seq_len) {
 				rc = gpio_direction_output(ctrl_pdata->rst_gpio,
 					pdata->panel_info.rst_seq[0]);
 				if (rc) {
 					pr_err("%s: unable to set dir for rst gpio\n",
 						__func__);
+					gpio_free(ctrl_pdata->tp_rst_gpio);
 					goto exit;
 				}
 			}
 
 			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+				if (rc_tp == 0) {
+					gpio_set_value((ctrl_pdata->tp_rst_gpio),
+						pdata->panel_info.rst_seq[i]);
+					pr_debug("FTS: SET TP_RST %d\n",
+						pdata->panel_info.rst_seq[i]);
+				}
 				gpio_set_value((ctrl_pdata->rst_gpio),
 					pdata->panel_info.rst_seq[i]);
 				if (pdata->panel_info.rst_seq[++i])
 					usleep_range((pinfo->rst_seq[i] * 1000),
 					(pinfo->rst_seq[i] * 1000) + 10);
 			}
+			if (rc_tp == 0)
+				gpio_free(ctrl_pdata->tp_rst_gpio);
 
 			if (gpio_is_valid(ctrl_pdata->bklt_en_gpio)) {
 
@@ -516,8 +558,21 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			usleep_range(100, 110);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
-		gpio_set_value((ctrl_pdata->rst_gpio), 0);
-		gpio_free(ctrl_pdata->rst_gpio);
+		if (gpio_is_valid(ctrl_pdata->tp_rst_gpio)) {
+			rc = gpio_request(ctrl_pdata->tp_rst_gpio, "tp_rst_gpio");
+			if (rc) {
+				pr_err("request tp rst gpio failed, rc=%d\n", rc);
+			} else {
+				if (gesture_mode_enable == 0) {
+					gpio_set_value(ctrl_pdata->tp_rst_gpio, 1);
+					usleep_range(100, 110);
+				}
+				gpio_free(ctrl_pdata->tp_rst_gpio);
+			}
+		}
+
+		if (gpio_is_valid(ctrl_pdata->rst_gpio))
+			gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
 	}

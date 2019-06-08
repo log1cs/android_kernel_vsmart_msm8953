@@ -456,3 +456,11 @@ config MIPS_EJTAG_FDC_KGDB_CHAN
 	  FDC channel number to use for KGDB.
 
 endif # TTY
+
+config PRESS_KEY_TRIGGER_PANIC
+	bool "Enable press hot key trigger the crash"
+	default y
+	---help---
+	  Press the power button, volume up button
+	  and volume down button to trigger the crash.
+

@@ -30,16 +30,15 @@
 };
 
 &i2c_3 {
-	status = "disabled";
+	status = "ok";
 };
 
 &int_codec {
 	status = "okay";
 	qcom,model = "msm8953-sku4-snd-card";
 	qcom,msm-micbias1-ext-cap;
-	qcom,msm-micbias2-ext-cap;
 	qcom,msm-mbhc-hphl-swh = <1>;
-	qcom,msm-mbhc-gnd-swh = <0>;
+	qcom,msm-mbhc-gnd-swh = <1>;
 	qcom,msm-hs-micbias-type = "external";
 };
 
@@ -106,13 +105,14 @@
 	ibb-supply = <&lcdb_ncp_vreg>;
 	/delete-property/ vdd-supply;
 
-	qcom,dsi-pref-prim-pan = <&dsi_hx8399c_truly_vid>;
+	qcom,dsi-pref-prim-pan = <&dsi_ft8006p_hlt_1600_video>;
 	qcom,platform-bklight-en-gpio = <&pm8953_gpios 4 0>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
 	qcom,platform-te-gpio = <&tlmm 24 0>;
 	qcom,platform-reset-gpio = <&tlmm 61 0>;
+	vsm,tp-rst-gpio = <&tlmm 64 0>;
 };
 
 &mdss_dsi1 {
@@ -152,7 +152,7 @@
 };
 
 &pmi632_vadc {
-	chan@4a {
+	chan@2a {
 		qcom,scale-function = <22>;
 	};
 };
@@ -182,31 +182,43 @@
 };
 
 &pmi632_gpios {
-	smb_en {
-		smb_en_default: smb_en_default {
-			pins = "gpio2";
-			function = "func1";
-			output-enable;
-		};
-	};
 
-	pmi632_sense {
-		/* GPIO 7 and 8 are external-sense pins for PMI632 */
-		pmi632_sense_default: pmi632_sense_default {
-			pins = "gpio7", "gpio8";
-			bias-high-impedance;	/* disable the GPIO */
-			bias-disable;		/* no-pull */
-		};
-	};
+    pwm_out {
+        pwm_out_default: pwm_out_default {
+                     pins = "gpio6"; /* GPIO 6 */
+                     function = "func1"; /* Special Function 1 */
+                     bias-disable; /* No Pull */
+                     power-source = <0>; /* VIN0 */
+                     output-low; /* digital output, no invert */
+                     qcom,drive-strength = <3>; /* LOW strength */
+                     drive-push-pull; /* CMOS */
+                 };
+    };
+    smb_en {
+        smb_en_default: smb_en_default {
+                    pins = "gpio2";
+                    function = "func1";
+                    output-enable;
+                };
+    };
 
-	pmi632_ctm {
-		/* Disable GPIO1 for h/w base mitigation */
-		pmi632_ctm_default: pmi632_ctm_default {
-			pins = "gpio1";
-			bias-high-impedance;	/* disable the GPIO */
-			bias-disable;		/* no-pull */
-		};
-	};
+    pmi632_sense {
+        /* GPIO 7 and 8 are external-sense pins for PMI632 */
+        pmi632_sense_default: pmi632_sense_default {
+                          pins = "gpio7", "gpio8";
+                          bias-high-impedance;	/* disable the GPIO */
+                          bias-disable;		/* no-pull */
+                      };
+    };
+
+    pmi632_ctm {
+        /* Disable GPIO1 for h/w base mitigation */
+        pmi632_ctm_default: pmi632_ctm_default {
+                        pins = "gpio1";
+                        bias-high-impedance;	/* disable the GPIO */
+                        bias-disable;		/* no-pull */
+                    };
+    };
 };
 
 &tlmm {

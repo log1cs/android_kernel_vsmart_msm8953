@@ -1792,7 +1792,7 @@ static int report_state_of_charge(struct qpnp_bms_chip *chip)
 static void btm_notify_vbat(enum qpnp_tm_state state, void *ctx)
 {
 	struct qpnp_bms_chip *chip = ctx;
-	int vbat_uv;
+	int vbat_uv = 0;
 	int rc;
 
 	rc = get_battery_voltage(chip, &vbat_uv);
@@ -1980,7 +1980,7 @@ low_soc_exit:
 static int calculate_soc_from_voltage(struct qpnp_bms_chip *chip)
 {
 	int voltage_range_uv, voltage_remaining_uv, voltage_based_soc;
-	int rc, vbat_uv;
+	int rc, vbat_uv = 0;
 
 	/* check if we have the averaged fifo data */
 	if (chip->voltage_soc_uv) {
@@ -2063,7 +2063,7 @@ static void calculate_reported_soc(struct qpnp_bms_chip *chip)
 
 static int clamp_soc_based_on_voltage(struct qpnp_bms_chip *chip, int soc)
 {
-	int rc, vbat_uv;
+	int rc, vbat_uv = 0;
 
 	rc = get_battery_voltage(chip, &vbat_uv);
 	if (rc < 0) {
@@ -2208,7 +2208,7 @@ static void voltage_soc_timeout_work(struct work_struct *work)
 	mutex_lock(&chip->bms_device_mutex);
 	if (!chip->bms_dev_open) {
 		pr_warn("BMS device not opened, using voltage based SOC\n");
-		chip->dt.cfg_use_voltage_soc = true;
+		chip->dt.cfg_use_voltage_soc = false;
 	}
 	mutex_unlock(&chip->bms_device_mutex);
 }

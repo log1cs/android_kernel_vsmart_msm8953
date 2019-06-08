@@ -1,0 +1,200 @@
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&mdss_mdp {
+    dsi_ft8006p_hlt_1600_video: qcom,mdss_dsi_ft8006p_hlt_1600_video{
+		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
+		qcom,mdss-dsi-panel-name = "ft8006p hlt 1600 video dsi panel";
+		qcom,mdss-dsi-panel-type = "dsi_video_mode";
+		qcom,mdss-dsi-panel-destination = "display_1";
+		qcom,mdss-dsi-panel-framerate = <60>;
+		qcom,mdss-dsi-virtual-channel-id = <0>;
+		qcom,mdss-dsi-stream = <0>;
+		qcom,mdss-dsi-panel-width = <720>;
+		qcom,mdss-dsi-panel-height = <1600>;
+		qcom,mdss-dsi-h-front-porch = <300>;//300 45
+		qcom,mdss-dsi-h-back-porch = <25>;
+		qcom,mdss-dsi-h-pulse-width = <14>;
+		qcom,mdss-dsi-h-sync-skew = <0>;
+		qcom,mdss-dsi-v-back-porch = <106>;
+		qcom,mdss-dsi-v-front-porch = <130>;
+		qcom,mdss-dsi-v-pulse-width = <8>;
+		qcom,mdss-dsi-h-left-border = <0>;
+		qcom,mdss-dsi-h-right-border = <0>;
+		qcom,mdss-dsi-v-top-border = <0>;
+		qcom,mdss-dsi-v-bottom-border = <0>;
+		qcom,mdss-dsi-bpp = <24>;
+		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
+		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-border-color = <0>;
+		qcom,mdss-dsi-off-command = [
+			05 01 00 00 32 00 02 28 00
+			05 01 00 00 78 00 02 10 00
+            29 01 00 00 00 00 03 41 5A 0E
+            29 01 00 00 00 00 02 80 70
+            29 01 00 00 00 00 03 41 00 2F
+		];
+		qcom,mdss-dsi-on-command = [
+    29 01 00 00 00 00 02 41 5A
+    29 01 00 00 00 00 02 4C 03
+    29 01 00 00 00 00 03 41 5A 03
+    29 01 00 00 00 00 03 80 A9 00
+    29 01 00 00 00 00 03 41 5A 09
+    29 01 00 00 00 00 06 80 64 00 64 00 00
+    29 01 00 00 00 00 03 41 5A 0A
+    29 01 00 00 00 00 11 80 A5 15 A5 AA A5 88 42 68 A6 03 07 01 5F 46 50 3C
+    29 01 00 00 00 00 11 90 0C 0F 22 00 2A 18 64 00 88 03 00 EE EE 00 3F 2A
+    29 01 00 00 00 00 11 A0 00 30 02 32 11 0D 60 01 FF FF 03 40 42 0F 94 11
+    29 01 00 00 00 00 11 B0 E8 03 00 00 11 0D 60 00 FF FF 03 FF 34 0C 0F 0E
+    29 01 00 00 00 00 0b C0 1F 03 00 08 20 34 00 00 00 00
+    29 01 00 00 00 00 03 41 5A 0B
+    29 01 00 00 00 00 11 80 FF A0 A0 00 00 0A 1F 33 3D 49 5B 67 69 75 75 89
+    29 01 00 00 00 00 11 90 7C 6A 6B 61 59 4A 3B 34 2A 1A 07 01 00 0A 1F 33
+    29 01 00 00 00 00 11 A0 3D 49 5B 67 69 75 75 89 7C 6A 6B 61 59 4A 3B 34
+    29 01 00 00 00 00 06 B0 2A 1A 07 01 00
+    29 01 00 00 00 00 03 41 5A 0C
+    29 01 00 00 00 00 11 80 00 00 20 42 00 00 80 05 54 00 00 00 20 42 00 00
+    29 01 00 00 00 00 03 90 80 05
+    29 01 00 00 00 00 03 41 5A 0D
+    29 01 00 00 00 00 11 80 7A D0 02 40 06 D7 00 FA 00 0A 0A 0A 0A 00 01 03
+    29 01 00 00 00 00 11 90 00 00 00 00 AC A2 2A 00 00 00 AC A2 2A 57 31 00
+    29 01 00 00 00 00 11 A0 00 00 00 00 00 AC A2 2A AA C2 2A AC A2 2A AA C2
+    29 01 00 00 00 00 07 B0 2A 00 00 00 AA 52
+    29 01 00 00 00 00 03 41 5A 0E
+    29 01 00 00 00 00 0d 80 F0 B1 71 EF 4B 20 37 0F AA AA 00 00
+    29 01 00 00 00 00 03 41 5A 0F
+    29 01 00 00 00 00 0c 80 FF 00 55 55 23 88 88 1C 00 5A 5A
+    29 01 00 00 00 00 03 41 5A 10
+    29 01 00 00 00 00 11 80 B5 45 09 18 01 3C 94 32 10 C4 C4 04 00 60 C0 00
+    29 01 00 00 00 00 11 90 04 00 00 86 10 31 98 34 34 34 26 26 3E 1A 62 20
+    29 01 00 00 00 00 05 A0 0C 40 00 8A
+    29 01 00 00 00 00 03 41 5A 11
+    29 01 00 00 00 00 11 80 00 00 03 E7 1F 17 10 48 80 AA 90 1A 30 88 41 8A
+    29 01 00 00 00 00 10 90 39 28 A9 C5 9A 7B F0 07 7E E0 07 7E 20 10 00
+    29 01 00 00 00 00 03 41 5A 12
+    29 01 00 00 00 00 11 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 41 37
+    29 01 00 00 00 00 11 90 2D 23 19 0F 05 FB F1 E7 00 00 00 00 00 00 00 00
+    29 01 00 00 00 00 11 A0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    29 01 00 00 00 00 11 B0 00 00 00 00 00 00 00 00 00 2D 23 05 FB 00 2D 23
+    29 01 00 00 00 00 05 C0 05 FB 00 01
+    29 01 00 00 00 00 03 41 5A 13
+    29 01 00 00 00 00 11 80 FD 0F 00 0C 00 80 80 82 00 07 22 06 E7 B9 86 1A
+    29 01 00 00 00 00 11 90 32 00 A2 2D 65 00 00 00 00 D0 C9 B7 FE 26 6F 32
+    29 01 00 00 00 00 04 A0 22 90 04
+    29 01 00 00 00 00 03 41 5A 14
+    29 01 00 00 00 00 11 80 01 02 40 5E D1 DF EF F7 FB FD 02 00 00 20 8B 0D
+    29 01 00 00 00 00 11 90 77 FA C0 16 78 24 04 36 C1 23 21 00 2B 23 F8 00
+    29 01 00 00 00 00 11 A0 00 F8 FD 00 00 C0 EF 07 00 3F 06 6B C5 EF 8F 00
+    29 01 00 00 00 00 11 B0 B0 13 BF 3F 02 00 00 00 00 88 64 48 56 00 80 42
+    29 01 00 00 00 00 11 C0 A1 F0 06 DC 69 01 A3 00 5E 80 3B 2D 60 14 C0 2B
+    29 01 00 00 00 00 11 D0 70 A7 05 8C 02 78 09 EE B4 80 51 00 AF C1 9D 16
+    29 01 00 00 00 00 11 E0 30 06 E0 45 B8 D3 02 46 01 BC 0A 77 5A C0 28 80
+    29 01 00 00 00 00 11 F0 97 E1 4E 0B 18 05 30 06 7E 3F 14 00 00 00 00 00
+    29 01 00 00 00 00 03 41 5A 15
+    29 01 00 00 00 00 11 80 00 00 00 00 00 00 00 00 00 00 00 00 0C 80 FF EF
+    29 01 00 00 00 00 11 90 27 03 43 C6 88 51 AB 0D A1 D5 3A 62 D4 6A 43 68
+    29 01 00 00 00 00 11 A0 B5 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    29 01 00 00 00 00 11 B0 00 00 00 00 00 00 00 00 26 00 E0 01 28 54 AB AE
+    29 01 00 00 00 00 11 C0 66 DB B6 AD A3 B4 AD 21 44 6D DB B6 6D 0B B5 AB
+    29 01 00 00 00 00 11 D0 6A B6 6D DB 02 44 DB 22 8C D4 B6 6D DB B6 52 AB
+    29 01 00 00 00 00 11 E0 AE 66 DB B6 2D 83 B4 2D 01 40 6D DB B6 6D 1B B5
+    29 01 00 00 00 00 11 F0 AB 6A B6 6D DB 0A 46 DB 2A 0E D5 B6 6D DB B6 00
+    29 01 00 00 00 00 03 41 5A 16
+    29 01 00 00 00 00 11 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    29 01 00 00 00 00 0b 90 00 00 00 00 A0 41 2A 01 00 00
+    29 01 00 00 00 00 03 41 5A 18
+    29 01 00 00 00 00 11 80 EF BD F7 DE 7B EF BD 07 08 08 0A 0C 0C 0C 0C 0C
+    29 01 00 00 00 00 11 90 0C 0C 0C 5C 09 A8 AA AA AA AA AA AA AA AA AA 5A
+    29 01 00 00 00 00 11 A0 59 59 59 59 59 59 59 59 59 59 59 09 04 FF 00 80
+    29 01 00 00 00 00 10 B0 80 00 04 20 00 01 08 40 00 02 10 80 00 04 00
+    29 01 00 00 00 00 03 41 5A 19
+    29 01 00 00 00 00 11 80 C4 B5 A6 9B 93 8C 86 81 80 80 80 80 77 F7 FF FF
+    29 01 00 00 00 00 11 90 FF 0F F0 BF 7F 4F 0F FF AF B5 71 0E 6C 4A 69 08
+    29 01 00 00 00 00 05 A0 00 00 48 00
+    29 01 00 00 00 00 03 41 5A 1A
+    29 01 00 00 00 00 11 80 FF 00 04 08 0C 00 10 14 18 1C 00 20 27 2F 37 FC
+    29 01 00 00 00 00 11 90 3F 47 4F 57 AB 5F 67 6F 77 56 7F 87 8E 96 F0 9E
+    29 01 00 00 00 00 11 A0 A6 AE B6 6B BE C6 CE D5 C1 DD E5 EC F4 56 F8 FA
+    29 01 00 00 00 00 11 B0 FB 15 00 04 07 0B F0 0F 13 17 1B 6A 1F 27 2E 36
+    29 01 00 00 00 00 11 C0 B1 3E 46 4E 55 C6 5D 65 6D 75 1B 7D 84 8C 94 AC
+    29 01 00 00 00 00 11 D0 9C A4 AC B3 C1 BB C3 CB D3 16 DB E2 EA F2 BC F6
+    29 01 00 00 00 00 11 E0 F8 F9 16 00 04 07 0B F0 0F 13 17 1B AF 1F 27 2F
+    29 01 00 00 00 00 11 F0 37 FA 3F 47 4F 57 FF 5F 67 6F 77 AF 7F 87 8F 97
+    29 01 00 00 00 00 03 41 5A 1B
+    29 01 00 00 00 00 11 80 05 9E A6 AE B6 6F BE C6 CE D6 01 DE E6 F0 F8 00
+    29 01 00 00 00 00 06 90 FC FE FF 00 00
+    29 01 00 00 00 00 03 41 5A 1C
+    29 01 00 00 00 00 11 80 33 22 00 03 5A 02 5A 54 E5 FF C7 20 18 28 18 08
+    29 01 00 00 00 00 11 90 10 0C 07 09 06 06 0A 10 0C 09 0B 06 26 F2 78 40
+    29 01 00 00 00 00 11 A0 20 08 08 06 13 C0 34 1E 0A 08 66 D1 A0 1C 20 20
+    29 01 00 00 00 00 11 B0 18 04 20 00 C0 04 28 01 4C 00 23 18 10 0A 06 C9
+    29 01 00 00 00 00 11 C0 04 70 41 58 54 B5 4A 55 15 00 78 F8 99 99 99 99
+    29 01 00 00 00 00 11 D0 99 99 88 88 88 88 88 88 08 C4 E3 81 00 20 80 27
+    29 01 00 00 00 00 11 E0 E2 89 00 00 00 00 40 00 80 30 04 41 06 00 00 00
+    29 01 00 00 00 00 11 F0 00 92 24 49 92 04 00 00 00 00 92 04 00 C0 03 40
+    29 01 00 00 00 00 03 41 5A 1D
+    29 01 00 00 00 00 11 80 00 01 54 0B 23 18 00 00 80 00 00 00 00 00 00 00
+    29 01 00 00 00 00 03 41 5A 22
+    29 01 00 00 00 00 10 80 00 5E 00 00 00 00 00 00 5E 00 00 00 00 00 00
+    29 01 00 00 00 00 03 41 5A 24
+    29 01 00 00 00 00 11 80 2D D3 00 55 55 55 55 55 55 55 55 1F 00 AA 3E 00
+    29 01 00 00 00 00 05 90 00 00 00 00
+    29 01 00 00 00 00 03 41 5A 25
+    29 01 00 00 00 00 11 80 01 05 00 05 00 00 00 00 00 00 00 00 00 00 00 FF
+    29 01 00 00 00 00 0c 90 0F 00 00 24 00 00 00 00 FF 07 35
+    29 01 00 00 00 00 03 41 5A 26
+    29 01 00 00 00 00 11 80 00 83 00 FB BF 60 00 01 00 00 00 00 00 00 6F 78
+    29 01 00 00 00 00 04 90 5A A5 5A
+    29 01 00 00 00 00 02 90 A5
+    29 01 00 00 00 00 03 41 00 2F
+    29 01 00 00 00 00 02 35 00
+    29 01 00 00 00 00 02 11 00
+    29 01 00 00 00 00 02 29 00];
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+		//qcom,mdss-dsi-panel-timings = [6b 14 0c 00 36 38 12 18 11 03 04 00];
+		qcom,mdss-dsi-panel-timings-phy-v2 = [
+		21 1d 07 08 04 02 04 a0
+		21 1d 07 08 04 02 04 a0
+		21 1d 07 08 04 02 04 a0
+		21 1d 07 08 04 02 04 a0
+		21 15 06 07 04 02 04 a0
+		];
+		qcom,mdss-dsi-t-clk-post = <0x9>;
+		qcom,mdss-dsi-t-clk-pre = <0x17>;
+		qcom,mdss-dsi-h-sync-pulse = <1>;
+		qcom,mdss-dsi-traffic-mode = "non_burst_sync_event";
+		qcom,mdss-dsi-lane-map = "lane_map_0123";
+		qcom,mdss-dsi-bllp-eof-power-mode;
+		qcom,mdss-dsi-bllp-power-mode;
+		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_pwm";
+		qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
+		qcom,mdss-dsi-bl-pmic-bank-select = <0>;
+		qcom,mdss-dsi-bl-min-level = <1>;
+		qcom,mdss-dsi-bl-max-level = <255>;
+		qcom,mdss-dsi-dma-trigger = "trigger_sw";
+		qcom,mdss-dsi-mdp-trigger = "none";
+		qcom,mdss-dsi-tx-eot-append;
+		qcom,mdss-dsi-lane-0-state;
+		qcom,mdss-dsi-lane-1-state;
+		qcom,mdss-dsi-lane-2-state;
+		qcom,mdss-dsi-lane-3-state;
+		qcom,mdss-dsi-reset-sequence = <1 5>, <0 5>, <1 30>;
+		qcom,mdss-dsi-hfp-power-mode;
+		qcom,esd-check-enabled;
+		//qcom,mdss-dsi-te-check-enable;
+		//qcom,mdss-dsi-panel-status-check-mode = "te_signal_check";
+
+		qcom,mdss-dsi-lp11-init;
+		qcom,mdss-dsi-post-init-delay = <2>;
+	};
+};

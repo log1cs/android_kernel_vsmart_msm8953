@@ -105,9 +105,7 @@
 		status = "disabled";
 	};
 
-	quiet-therm-step {
-		status = "disabled";
-	};
+
 
 	video-usr {
 		polling-delay-passive = <0>;
@@ -998,7 +996,19 @@
 				< 1804800 787200>;      /* TURBO */
 		};
 	};
+
+	/*nhatnd3,add,add board id,begin*/
+	qcom,board_id {
+		compatible = "qcom,board_id";
+		board_id0_read = <&tlmm 90 0>;
+		board_id1_read = <&tlmm 91 0>;
+		board_id2_read = <&tlmm 92 0>;
+		board_id3_read = <&tlmm 93 0>;
+		status = "ok";
+	};
+	/*nhatnd3,add,add board id,end*/
 };
+
 
 &pm8953_vadc {
 	pinctrl-0 = <&pa_therm1_default>;

@@ -437,6 +437,7 @@ struct mdss_dsi_ctrl_pdata {
 	int bklt_en_gpio;
 	int vdd_ext_gpio;
 	int mode_gpio;
+	int tp_rst_gpio;
 	int intf_mux_gpio;
 	bool bklt_en_gpio_invert;
 	int lcd_mode_sel_gpio;

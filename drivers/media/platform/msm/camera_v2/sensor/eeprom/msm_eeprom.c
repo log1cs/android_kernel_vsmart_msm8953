@@ -135,6 +135,59 @@ static uint32_t msm_eeprom_match_crc(struct msm_eeprom_memory_block_t *data)
 	return ret;
 }
 
+#ifdef CONFIG_VSM_FACTORY_BIN
+#define EEPROM_ONE_WRITE_SEQ_SIZE 8
+int write_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl, void *argp)
+{
+	int rc = 0;
+	uint32_t reg_addr = 0;
+	int size = 0;
+	int i = 0;
+	uint32_t write_num_bytes = 0;
+	struct msm_eeprom_cfg_data *cdata =(struct msm_eeprom_cfg_data *) argp;
+	struct eeprom_write_t write_data;	
+	
+	CDBG("%s: Enter\n", __func__);
+	write_data.dbuffer = NULL;
+	write_data.num_bytes = cdata->cfg.write_data.num_bytes;
+	if(write_data.num_bytes < 0){
+		pr_err("%s:%d linhbh2  invalid num_bytes = %d\n", __func__, __LINE__, write_data.num_bytes);
+		rc = -1;
+		goto exit;
+	}
+	CDBG("%s:%d  num_bytes = %d\n", __func__, __LINE__, write_data.num_bytes);	
+	write_data.dbuffer = kzalloc(write_data.num_bytes,GFP_KERNEL);
+	if (copy_from_user(write_data.dbuffer,
+                (void __user *)(cdata->cfg.write_data.dbuffer),write_data.num_bytes)) {
+                pr_err("%s:%d  failed copy_from_user \n", __func__, __LINE__);
+		rc = -1;
+		goto exit;
+    }
+	reg_addr = write_data.dbuffer[0] << 8;
+	reg_addr += write_data.dbuffer[1];
+	CDBG("%s:%d reg_addr = %x \n", __func__, __LINE__,reg_addr);
+	
+	// write use i2c protocol
+	size = write_data.num_bytes - 2;
+	for(i = 0; i < size; i += EEPROM_ONE_WRITE_SEQ_SIZE){
+		write_num_bytes = (i + EEPROM_ONE_WRITE_SEQ_SIZE > size)?(size - i):EEPROM_ONE_WRITE_SEQ_SIZE;
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write_seq(
+			&(e_ctrl->i2c_client),reg_addr + i,&write_data.dbuffer[i+2],write_num_bytes);
+		if(rc < 0){
+            pr_err("%s:%d  (i = %d) failed to write %d bytes \n", __func__, __LINE__,i, write_data.num_bytes);
+			rc = -1;
+			goto exit;
+		}
+		usleep_range(3000,3000);
+	}
+exit:
+	if(write_data.dbuffer)
+		kfree(write_data.dbuffer);
+	CDBG("%s: Exit rc = %d\n", __func__, rc);
+	return rc;
+}
+#endif
+
 /*
  * read_eeprom_memory() - read map data into buffer
  * @e_ctrl:	eeprom control struct
@@ -622,8 +675,13 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
 	int rc = 0;
 	size_t length = 0;
 
-	CDBG("%s E\n", __func__);
+        CDBG("%s:%d Enter  cdata->cfgtype = %d \n", __func__, __LINE__,cdata->cfgtype);
 	switch (cdata->cfgtype) {
+  #ifdef CONFIG_VSM_FACTORY_BIN
+	case CFG_EEPROM_WRITE_DATA:
+		rc = write_eeprom_memory(e_ctrl,argp);
+		break;
+  #endif
 	case CFG_EEPROM_GET_INFO:
 		if (e_ctrl->userspace_probe == 1) {
 			pr_err("%s:%d Eeprom name should be module driver",

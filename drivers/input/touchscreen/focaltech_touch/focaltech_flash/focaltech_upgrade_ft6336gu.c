@@ -234,7 +234,7 @@ static int fts_ft6x36gu_get_app_bin_file_ver(struct i2c_client *client,
 	}
 
 	if (fw->size < APP_FILE_MIN_SIZE || fw->size > APP_FILE_MAX_SIZE)
-		FTS_ERROR("[UPGRADE]: FW length(%x) error", fw->size);
+		FTS_ERROR("[UPGRADE]: FW length(%x) error", (unsigned int)fw->size);
 	else
 		fw_ver = fw->data[APP_FILE_VER_MAPPING];
 

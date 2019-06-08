@@ -88,6 +88,12 @@ enum print_reason {
 #define TYPEC_MEDIUM_CURRENT_UA		1500000
 #define TYPEC_HIGH_CURRENT_UA		3000000
 
+enum qc2_non_comp_voltage {
+	QC2_COMPLIANT,
+	QC2_NON_COMPLIANT_9V,
+	QC2_NON_COMPLIANT_12V
+};
+
 enum smb_mode {
 	PARALLEL_MASTER = 0,
 	PARALLEL_SLAVE,
@@ -355,10 +361,16 @@ struct smb_charger {
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
 	struct delayed_work	usbov_dbc_work;
+	struct delayed_work	period_update_work;
 
 	/* alarm */
 	struct alarm		moisture_protection_alarm;
 	struct alarm		chg_termination_alarm;
+
+	/*adding solution */
+	int			input_abnormal;
+	enum qc2_non_comp_voltage qc2_unsupported_voltage;
+	int 			qc2_max_pulses;
 
 	/* pd */
 	int			voltage_min_uv;
@@ -586,6 +598,11 @@ int smblib_get_prop_pr_swap_in_progress(struct smb_charger *chg,
 int smblib_set_prop_pr_swap_in_progress(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_get_prop_from_bms(struct smb_charger *chg,
+				enum power_supply_property psp,
+				union power_supply_propval *val);
+/* thanhnd32 - add api */
+void smblib_check_valid_input(struct smb_charger *chg);
+int smblib_get_prop_from_usb(struct smb_charger *chg,
 				enum power_supply_property psp,
 				union power_supply_propval *val);
 int smblib_stat_sw_override_cfg(struct smb_charger *chg, bool override);

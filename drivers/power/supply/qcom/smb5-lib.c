@@ -517,7 +517,7 @@ static int smblib_set_adapter_allowance(struct smb_charger *chg,
 			allowed_voltage, rc);
 		return rc;
 	}
-
+	smblib_dbg(chg, PR_MISC, "set adapter allowance to %d\n",allowed_voltage);
 	return rc;
 }
 
@@ -587,6 +587,19 @@ int smblib_set_aicl_cont_threshold(struct smb_chg_param *param,
 /********************
  * HELPER FUNCTIONS *
  ********************/
+int smblib_get_prop_from_usb(struct smb_charger *chg,
+				enum power_supply_property psp,
+				union power_supply_propval *val)
+{
+	int rc;
+
+	if (!chg->usb_psy)
+		return -EINVAL;
+
+	rc = power_supply_get_property(chg->usb_psy, psp, val);
+
+	return rc;
+}
 
 int smblib_get_prop_from_bms(struct smb_charger *chg,
 				enum power_supply_property psp,
@@ -800,9 +813,9 @@ static void smblib_uusb_removal(struct smb_charger *chg)
 
 	/* reconfigure allowed voltage for HVDCP */
 	rc = smblib_set_adapter_allowance(chg,
-			USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V);
+			USBIN_ADAPTER_ALLOW_5V_TO_9V);
 	if (rc < 0)
-		smblib_err(chg, "Couldn't set USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V rc=%d\n",
+		smblib_err(chg, "Couldn't set USBIN_ADAPTER_ALLOW_5V_TO_9V rc=%d\n",
 			rc);
 
 	/* reset USBOV votes and cancel work */
@@ -833,6 +846,23 @@ static void smblib_uusb_removal(struct smb_charger *chg)
 	if (rc < 0)
 		smblib_err(chg,
 			"Couldn't un-vote DCP from USB ICL rc=%d\n", rc);
+	if (chg->qc2_unsupported_voltage) {
+		rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+				HVDCP_PULSE_COUNT_MAX_QC2_MASK,
+				chg->qc2_max_pulses);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't restore max pulses rc=%d\n",
+					rc);
+
+		rc = smblib_masked_write(chg, USBIN_AICL_OPTIONS_CFG_REG,
+				SUSPEND_ON_COLLAPSE_USBIN_BIT,
+				SUSPEND_ON_COLLAPSE_USBIN_BIT);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't turn on SUSPEND_ON_COLLAPSE_USBIN_BIT rc=%d\n",
+					rc);
+
+		chg->qc2_unsupported_voltage = QC2_COMPLIANT;
+	}
 }
 
 void smblib_suspend_on_debug_battery(struct smb_charger *chg)
@@ -1803,7 +1833,7 @@ static int smblib_dm_pulse(struct smb_charger *chg)
 int smblib_force_vbus_voltage(struct smb_charger *chg, u8 val)
 {
 	int rc;
-
+	smblib_dbg(chg, PR_MISC, "smblib_force_vbus_voltage to %d\n",val);
 	rc = smblib_masked_write(chg, CMD_HVDCP_2_REG, val, val);
 	if (rc < 0)
 		smblib_err(chg, "Couldn't write to CMD_HVDCP_2_REG rc=%d\n",
@@ -1816,7 +1846,13 @@ int smblib_dp_dm(struct smb_charger *chg, int val)
 {
 	int target_icl_ua, rc = 0;
 	union power_supply_propval pval;
-
+	if(POWER_SUPPLY_DP_DM_FORCE_12V == val) {
+		pr_err("smblib_dp_dm val=%d, unsupported\n",val);
+		chg->qc2_unsupported_voltage = QC2_NON_COMPLIANT_12V;
+	} else if(POWER_SUPPLY_DP_DM_FORCE_9V == val) {
+		pr_err("smblib_dp_dm val=%d, unsupported\n",val);
+		chg->qc2_unsupported_voltage = QC2_NON_COMPLIANT_9V;
+	}
 	switch (val) {
 	case POWER_SUPPLY_DP_DM_DP_PULSE:
 		rc = smblib_dp_pulse(chg);
@@ -1863,19 +1899,44 @@ int smblib_dp_dm(struct smb_charger *chg, int val)
 				target_icl_ua, chg->usb_icl_delta_ua);
 		break;
 	case POWER_SUPPLY_DP_DM_FORCE_5V:
+		smblib_set_adapter_allowance(chg,
+							USBIN_ADAPTER_ALLOW_5V);
+		smblib_masked_write(chg, USBIN_OPTIONS_1_CFG_REG,
+							HVDCP_AUTONOMOUS_MODE_EN_CFG_BIT, 0);
 		rc = smblib_force_vbus_voltage(chg, FORCE_5V_BIT);
 		if (rc < 0)
 			pr_err("Failed to force 5V\n");
+		smblib_dbg(chg, PR_MISC, "Forcing 5V input voltage\n");
+		if(chg->batt_psy)
+			power_supply_changed(chg->batt_psy);
 		break;
 	case POWER_SUPPLY_DP_DM_FORCE_9V:
+		if (chg->qc2_unsupported_voltage == QC2_NON_COMPLIANT_9V) {
+			smblib_err(chg, "Couldn't set 9V: unsupported\n");
+			return -EINVAL;
+		}
+		smblib_set_adapter_allowance(chg,
+						USBIN_ADAPTER_ALLOW_9V);
+		smblib_masked_write(chg, USBIN_OPTIONS_1_CFG_REG,
+						HVDCP_AUTONOMOUS_MODE_EN_CFG_BIT, 0);
 		rc = smblib_force_vbus_voltage(chg, FORCE_9V_BIT);
 		if (rc < 0)
 			pr_err("Failed to force 9V\n");
+		smblib_dbg(chg, PR_MISC, "Forcing 9V input voltage\n");
+		if(chg->batt_psy)
+			power_supply_changed(chg->batt_psy);
 		break;
 	case POWER_SUPPLY_DP_DM_FORCE_12V:
+		if (chg->qc2_unsupported_voltage == QC2_NON_COMPLIANT_12V) {
+			smblib_err(chg, "Couldn't set 12V: unsupported\n");
+			return -EINVAL;
+		}
 		rc = smblib_force_vbus_voltage(chg, FORCE_12V_BIT);
 		if (rc < 0)
 			pr_err("Failed to force 12V\n");
+		smblib_dbg(chg, PR_MISC, "Forcing 12V input voltage\n");
+		if(chg->batt_psy)
+		power_supply_changed(chg->batt_psy);
 		break;
 	case POWER_SUPPLY_DP_DM_ICL_UP:
 	default:
@@ -2030,6 +2091,14 @@ int smblib_get_prop_usb_voltage_max(struct smb_charger *chg,
 {
 	switch (chg->real_charger_type) {
 	case POWER_SUPPLY_TYPE_USB_HVDCP:
+		if (chg->qc2_unsupported_voltage == QC2_NON_COMPLIANT_9V) {
+			val->intval = MICRO_5V;
+			break;
+		} else if (chg->qc2_unsupported_voltage ==
+				QC2_NON_COMPLIANT_12V) {
+			val->intval = MICRO_9V;
+			break;
+		}
 	case POWER_SUPPLY_TYPE_USB_HVDCP_3:
 		if (chg->smb_version == PMI632_SUBTYPE)
 			val->intval = MICRO_9V;
@@ -2052,6 +2121,14 @@ int smblib_get_prop_usb_voltage_max_design(struct smb_charger *chg,
 {
 	switch (chg->real_charger_type) {
 	case POWER_SUPPLY_TYPE_USB_HVDCP:
+		if (chg->qc2_unsupported_voltage == QC2_NON_COMPLIANT_9V) {
+			val->intval = MICRO_5V;
+			break;
+		} else if (chg->qc2_unsupported_voltage ==
+				QC2_NON_COMPLIANT_12V) {
+			val->intval = MICRO_9V;
+			break;
+		}
 	case POWER_SUPPLY_TYPE_USB_HVDCP_3:
 	case POWER_SUPPLY_TYPE_USB_PD:
 		if (chg->smb_version == PMI632_SUBTYPE)
@@ -2872,7 +2949,9 @@ irqreturn_t usbin_uv_irq_handler(int irq, void *data)
 	struct smb_irq_data *irq_data = data;
 	struct smb_charger *chg = irq_data->parent_data;
 	struct storm_watch *wdata;
+	const struct apsd_result *apsd = smblib_get_apsd_result(chg);
 	int rc;
+	u8 stat = 0, max_pulses = 0;
 
 	smblib_dbg(chg, PR_INTERRUPT, "IRQ: %s\n", irq_data->name);
 
@@ -2943,6 +3022,53 @@ unsuspend_input:
 
 	wdata = &chg->irq_info[SWITCHER_POWER_OK_IRQ].irq_data->storm_data;
 	reset_storm_count(wdata);
+	if (!chg->qc2_unsupported_voltage &&
+			apsd->pst == POWER_SUPPLY_TYPE_USB_HVDCP) {
+		rc = smblib_read(chg, QC_CHANGE_STATUS_REG, &stat);
+		if (rc < 0)
+			smblib_err(chg,
+				"Couldn't read CHANGE_STATUS_REG rc=%d\n", rc);
+
+		if (stat & QC_5V_BIT)
+			return IRQ_HANDLED;
+
+		rc = smblib_read(chg, HVDCP_PULSE_COUNT_MAX_REG, &max_pulses);
+		if (rc < 0)
+			smblib_err(chg,
+				"Couldn't read QC2 max pulses rc=%d\n", rc);
+
+		chg->qc2_max_pulses = (max_pulses &
+				HVDCP_PULSE_COUNT_MAX_QC2_MASK);
+
+		if (stat & QC_12V_BIT) {
+			chg->qc2_unsupported_voltage = QC2_NON_COMPLIANT_12V;
+			rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+					HVDCP_PULSE_COUNT_MAX_QC2_MASK,
+					HVDCP_PULSE_COUNT_MAX_QC2_9V);
+			if (rc < 0)
+				smblib_err(chg, "Couldn't force max pulses to 9V rc=%d\n",
+						rc);
+
+		} else if (stat & QC_9V_BIT) {
+			chg->qc2_unsupported_voltage = QC2_NON_COMPLIANT_9V;
+			rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+					HVDCP_PULSE_COUNT_MAX_QC2_MASK,
+					HVDCP_PULSE_COUNT_MAX_QC2_5V);
+			if (rc < 0)
+				smblib_err(chg, "Couldn't force max pulses to 5V rc=%d\n",
+						rc);
+
+		}
+
+		rc = smblib_masked_write(chg, USBIN_AICL_OPTIONS_CFG_REG,
+				SUSPEND_ON_COLLAPSE_USBIN_BIT,
+				0);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't turn off SUSPEND_ON_COLLAPSE_USBIN_BIT rc=%d\n",
+					rc);
+
+		smblib_rerun_apsd(chg);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -3180,7 +3306,7 @@ static void smblib_handle_sdp_enumeration_done(struct smb_charger *chg,
 static void smblib_hvdcp_adaptive_voltage_change(struct smb_charger *chg)
 {
 	int rc;
-	u8 stat;
+	u8 stat = 0;
 	int pulses;
 
 	power_supply_changed(chg->usb_main_psy);
@@ -3377,7 +3503,50 @@ static void smblib_handle_apsd_done(struct smb_charger *chg, bool rising)
 	smblib_dbg(chg, PR_INTERRUPT, "IRQ: apsd-done rising; %s detected\n",
 		   apsd_result->name);
 }
-
+/*thanhnd32 - adding solution */
+#define MAX_IP_VOLTAGE 9000000
+void smblib_check_valid_input(struct smb_charger *chg)
+{
+	int rc = 0;
+	union power_supply_propval val;
+	/* getting input voltage and check it if out of range force to 5V and rerun */
+	rc = smblib_get_prop_from_usb(chg,
+			POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
+	if (rc < 0) {
+		smblib_err(chg, "Couldn't read POWER_SUPPLY_PROP_VOLTAGE_NOW rc=%d\n", rc);
+		return ;
+	}
+	smblib_dbg(chg, PR_MISC, "Input voltage is %d\n",val.intval);
+	if(val.intval > MAX_IP_VOLTAGE)
+	{
+		pr_info(" Input voltage out of range !!!\n");
+		chg->input_abnormal = 1;
+		smblib_masked_write(chg, USBIN_OPTIONS_1_CFG_REG,
+				HVDCP_AUTONOMOUS_MODE_EN_CFG_BIT, 0);
+		smblib_force_vbus_voltage(chg, FORCE_5V_BIT);
+		msleep(300);
+		rc = smblib_get_prop_from_usb(chg,
+				POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't read POWER_SUPPLY_PROP_VOLTAGE_NOW rc=%d\n", rc);
+			return ;
+		}
+		if(val.intval < MAX_IP_VOLTAGE)
+		{
+			pr_info("when voltage normal, immediately disable HVDCP to prevent abnormal voltage again !!!\n");
+			smblib_configure_hvdcp_apsd(chg, false);
+			chg->input_abnormal = 0;
+			return;
+		}
+	}
+	else if (val.intval < MAX_IP_VOLTAGE && chg->input_abnormal)
+	{
+		pr_info("disable HVDCP to prevent abnormal voltage again !!!\n");
+		smblib_configure_hvdcp_apsd(chg, false);
+		chg->input_abnormal = 0;
+	}
+}
+/*thanhnd32 - end*/
 irqreturn_t usb_source_change_irq_handler(int irq, void *data)
 {
 	struct smb_irq_data *irq_data = data;
@@ -3432,6 +3601,8 @@ irqreturn_t usb_source_change_irq_handler(int irq, void *data)
 		(bool)(stat & SLOW_PLUGIN_TIMEOUT_BIT));
 
 	smblib_hvdcp_adaptive_voltage_change(chg);
+
+	smblib_check_valid_input(chg);
 
 	power_supply_changed(chg->usb_psy);
 
@@ -3570,10 +3741,28 @@ static void typec_src_removal(struct smb_charger *chg)
 
 	/* reconfigure allowed voltage for HVDCP */
 	rc = smblib_set_adapter_allowance(chg,
-			USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V);
+			USBIN_ADAPTER_ALLOW_5V_TO_9V);
 	if (rc < 0)
 		smblib_err(chg, "Couldn't set USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V rc=%d\n",
 			rc);
+
+	if (chg->qc2_unsupported_voltage) {
+		rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+				HVDCP_PULSE_COUNT_MAX_QC2_MASK,
+				chg->qc2_max_pulses);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't restore max pulses rc=%d\n",
+					rc);
+
+		rc = smblib_masked_write(chg, USBIN_AICL_OPTIONS_CFG_REG,
+				SUSPEND_ON_COLLAPSE_USBIN_BIT,
+				SUSPEND_ON_COLLAPSE_USBIN_BIT);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't turn on SUSPEND_ON_COLLAPSE_USBIN_BIT rc=%d\n",
+					rc);
+
+		chg->qc2_unsupported_voltage = QC2_COMPLIANT;
+	}
 
 	if (chg->use_extcon)
 		smblib_notify_device_mode(chg, false);
@@ -4427,6 +4616,77 @@ static void smblib_destroy_votables(struct smb_charger *chg)
 		destroy_votable(chg->chg_disable_votable);
 }
 
+#ifdef CONFIG_VSM_FACTORY_BIN
+#define HEARTBEAT_MS			10000
+#define MAX_FACTORY_SOC			72
+#define MIN_FACTORY_SOC 		68
+static void smblib_period_update_work(struct work_struct *work)
+{
+	struct smb_charger *chg = container_of(work, struct smb_charger,
+						period_update_work.work);
+	int period = HEARTBEAT_MS;
+	union power_supply_propval bat_soc;
+	union power_supply_propval pval = {0, };
+  	int rc, suspend = 0;
+  	int capacity = 0;
+
+  	/*pr_info("====> %s\n", __func__);*/
+
+  	rc = smblib_get_prop_batt_capacity(chg, &bat_soc);
+  	capacity = bat_soc.intval;
+	if (rc < 0)
+		smblib_err(chg, "Error in getting bat_soc\n");
+
+  	if(chg == NULL) {
+		pr_err("pmic fatal error:the_chg=null\n!!");
+		return;
+	}
+
+  	/*we monitor every second incase capacity bigger than min soc*/
+  	if(capacity > MIN_FACTORY_SOC - 2)
+        period = 1000;
+
+	rc = smblib_get_prop_usb_present(chg, &pval);
+	if (rc < 0) {
+		smblib_err(chg,
+			"Couldn't get usb present prop rc=%d\n", rc);
+		return;
+	}
+
+	rc = smblib_get_usb_suspend(chg, &suspend);
+	if (rc < 0) {
+		smblib_err(chg,
+			"Couldn't get usb suspend rc=%d\n", rc);
+		return;
+	}
+
+	if(pval.intval) // usb - charger present
+	{
+		if((capacity > MAX_FACTORY_SOC - 1) && !suspend) // check to do just one time
+		{
+			pval.intval = 1;
+			smblib_set_prop_input_suspend(chg, &pval);
+			pr_debug("FACTORY bin: suspend input because of SOC\n");
+
+		} else if((capacity < MIN_FACTORY_SOC) && suspend) {
+
+			pval.intval = 0;
+			smblib_set_prop_input_suspend(chg, &pval);
+			pr_debug("FACTORY bin: resume input because of SOC\n");
+		}
+
+	} else {
+
+		pval.intval = 0;
+		smblib_set_prop_input_suspend(chg, &pval);
+		pr_debug("FACTORY bin: resume input because of SOC\n");
+	}
+
+	schedule_delayed_work(&chg->period_update_work,
+				      round_jiffies_relative(msecs_to_jiffies(period)));
+}
+#endif
+
 int smblib_init(struct smb_charger *chg)
 {
 	int rc = 0;
@@ -4441,6 +4701,9 @@ int smblib_init(struct smb_charger *chg)
 	INIT_DELAYED_WORK(&chg->uusb_otg_work, smblib_uusb_otg_work);
 	INIT_DELAYED_WORK(&chg->bb_removal_work, smblib_bb_removal_work);
 	INIT_DELAYED_WORK(&chg->usbov_dbc_work, smblib_usbov_dbc_work);
+#ifdef CONFIG_VSM_FACTORY_BIN
+	INIT_DELAYED_WORK(&chg->period_update_work, smblib_period_update_work);
+#endif
 
 	if (chg->wa_flags & CHG_TERMINATION_WA) {
 		INIT_WORK(&chg->chg_termination_work,
@@ -4474,6 +4737,11 @@ int smblib_init(struct smb_charger *chg)
 	chg->fake_batt_status = -EINVAL;
 	chg->jeita_configured = false;
 	chg->sink_src_mode = UNATTACHED_MODE;
+
+#ifdef CONFIG_VSM_FACTORY_BIN
+	schedule_delayed_work(&chg->period_update_work,
+		round_jiffies_relative(msecs_to_jiffies(HEARTBEAT_MS)));
+#endif
 
 	switch (chg->mode) {
 	case PARALLEL_MASTER:

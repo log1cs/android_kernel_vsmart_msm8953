@@ -7,6 +7,7 @@
 
 obj-y				+= irqchip/
 obj-y				+= bus/
+obj-y				+= vsm/
 
 obj-$(CONFIG_GENERIC_PHY)	+= phy/
 

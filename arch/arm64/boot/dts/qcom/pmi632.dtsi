@@ -215,20 +215,8 @@
 			};
 
 			chan@52 {
-				label = "typec_therm";
-				reg = <0x52>;
-				qcom,decimation = <2>;
-				qcom,pre-div-channel-scaling = <0>;
-				qcom,calibration-type = "ratiometric";
-				qcom,scale-function = <2>;
-				qcom,hw-settle-time = <0>;
-				qcom,fast-avg-setup = <0>;
-				qcom,cal-val = <0>;
-			};
-
-			chan@53 {
 				label = "quiet_therm";
-				reg = <0x53>;
+				reg = <0x52>;
 				qcom,decimation = <2>;
 				qcom,pre-div-channel-scaling = <0>;
 				qcom,calibration-type = "ratiometric";
@@ -266,9 +254,9 @@
 			qcom,fast-avg-setup = <0>;
 			#thermal-sensor-cells = <1>;
 
-			chan@53 {
+			chan@52 {
 				label = "quiet_therm";
-				reg = <0x53>;
+				reg = <0x52>;
 				qcom,pre-div-channel-scaling = <0>;
 				qcom,calibration-type = "ratiometric";
 				qcom,scale-function = <2>;
@@ -321,7 +309,10 @@
 			qcom,step-charging-enable;
 			qcom,hw-die-temp-mitigation;
 			qcom,hw-connector-mitigation;
-			qcom,connector-internal-pull-kohm = <100>;
+			qcom,connector-internal-pull-kohm = <30>;
+			qcom,chg-term-src = <1>;
+			qcom,chg-term-current-ma = <(-250)>;
+			qcom,chg-term-base-current-ma = <(-100)>;
 
 			qcom,thermal-mitigation
 				= <3000000 2500000 2000000 1500000
@@ -483,7 +474,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			qcom,qg-iterm-ma = <100>;
+			qcom,qg-iterm-ma = <280>;
 			qcom,hold-soc-while-full;
 			qcom,linearize-soc;
 			qcom,qg-vadc = <&pmi632_vadc>;
@@ -556,42 +547,50 @@
 			qcom,disable-overdrive;
 		};
 
-		pmi632_pwm: qcom,pwms@b300 {
-			compatible = "qcom,pwm-lpg";
-			reg = <0xb300 0x500>;
-			reg-names = "lpg-base";
-			#pwm-cells = <2>;
-			nvmem-names = "ppg_sdam";
-			nvmem = <&pmi632_sdam7>;
-			qcom,pbs-client = <&pmi632_pbs_client3>;
-			qcom,lut-sdam-base = <0x80>;
-			qcom,lut-patterns = <0 0 0 14 28 42 56 70 84 100
-						100 84 70 56 42 28 14 0 0 0>;
-			lpg@1 {
-				qcom,lpg-chan-id = <1>;
-				qcom,ramp-step-ms = <200>;
-				qcom,ramp-low-index = <0>;
-				qcom,ramp-high-index = <19>;
-				qcom,ramp-pattern-repeat;
-				qcom,lpg-sdam-base = <0x48>;
-			};
-			lpg@2 {
-				qcom,lpg-chan-id = <2>;
-				qcom,ramp-step-ms = <200>;
-				qcom,ramp-low-index = <0>;
-				qcom,ramp-high-index = <19>;
-				qcom,ramp-pattern-repeat;
-				qcom,lpg-sdam-base = <0x56>;
-			};
-			lpg@3 {
-				qcom,lpg-chan-id = <3>;
-				qcom,ramp-step-ms = <200>;
-				qcom,ramp-low-index = <0>;
-				qcom,ramp-high-index = <19>;
-				qcom,ramp-pattern-repeat;
-				qcom,lpg-sdam-base = <0x64>;
-			};
-		};
+pmi632_pwm: qcom,pwms@b300 {
+                compatible = "qcom,pwm-lpg";
+                reg = <0xb300 0x500>;
+                reg-names = "lpg-base";
+                #pwm-cells = <2>;
+                nvmem-names = "ppg_sdam";
+                nvmem = <&pmi632_sdam7>;
+                qcom,pbs-client = <&pmi632_pbs_client3>;
+                qcom,lut-sdam-base = <0x80>;
+                qcom,lut-patterns = <0 0 0 14 28 42 56 70 84 100
+                    100 84 70 56 42 28 14 0 0 0>;
+                lpg@1 {
+                    qcom,lpg-chan-id = <1>;
+                    qcom,ramp-step-ms = <200>;
+                    qcom,ramp-low-index = <0>;
+                    qcom,ramp-high-index = <19>;
+                    qcom,ramp-pattern-repeat;
+                    qcom,lpg-sdam-base = <0x48>;
+                };
+                lpg@2 {
+                    qcom,lpg-chan-id = <2>;
+                    qcom,ramp-step-ms = <200>;
+                    qcom,ramp-low-index = <0>;
+                    qcom,ramp-high-index = <19>;
+                    qcom,ramp-pattern-repeat;
+                    qcom,lpg-sdam-base = <0x56>;
+                };
+                lpg@3 {
+                    qcom,lpg-chan-id = <3>;
+                    qcom,ramp-step-ms = <200>;
+                    qcom,ramp-low-index = <0>;
+                    qcom,ramp-high-index = <19>;
+                    qcom,ramp-pattern-repeat;
+                    qcom,lpg-sdam-base = <0x64>;
+                };
+                lpg@4 {
+                    qcom,lpg-chan-id = <4>;
+                    qcom,ramp-step-ms = <200>;
+                    qcom,ramp-low-index = <0>;
+                    qcom,ramp-high-index = <19>;
+                    qcom,ramp-pattern-repeat;
+                    qcom,lpg-sdam-base = <0x72>;
+                };
+            };
 
 		pmi632_rgb: qcom,leds@d000 {
 			compatible = "qcom,tri-led";
@@ -632,6 +631,8 @@
 				regulator-name = "lcdb_ldo";
 				regulator-min-microvolt = <4000000>;
 				regulator-max-microvolt = <6000000>;
+				//regulator-always-on;
+				qcom,ldo-voltage-mv = <5500>;
 			};
 
 			lcdb_ncp_vreg: ncp {
@@ -639,6 +640,8 @@
 				regulator-name = "lcdb_ncp";
 				regulator-min-microvolt = <4000000>;
 				regulator-max-microvolt = <6000000>;
+				//regulator-always-on;
+				qcom,ncp-voltage-mv = <5500>;
 			};
 
 			lcdb_bst_vreg: bst {
