@@ -1342,8 +1342,6 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 		sk = kmalloc(prot->obj_size, priority);
 
 	if (sk != NULL) {
-		kmemcheck_annotate_bitfield(sk, flags);
-
 		if (security_sk_alloc(sk, family, priority))
 			goto out_free;
 
@@ -1548,13 +1546,16 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		cgroup_sk_clone(&newsk->sk_cgrp_data);
 		skb_queue_head_init(&newsk->sk_error_queue);
 
-		filter = rcu_dereference_protected(newsk->sk_filter, 1);
+		rcu_read_lock();
+		filter = rcu_dereference(sk->sk_filter);
 		if (filter != NULL)
 			/* though it's an empty new sock, the charging may fail
 			 * if sysctl_optmem_max was changed between creation of
 			 * original socket and cloning
 			 */
 			is_charged = sk_filter_charge(newsk, filter);
+		RCU_INIT_POINTER(newsk->sk_filter, filter);
+		rcu_read_unlock();
 
 		if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk, sk))) {
 			/* We need to make sure that we don't uncharge the new
@@ -3136,3 +3137,14 @@ static int __init proto_init(void)
 subsys_initcall(proto_init);
 
 #endif /* PROC_FS */
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+bool sk_busy_loop_end(void *p, unsigned long start_time)
+{
+	struct sock *sk = p;
+
+	return !skb_queue_empty(&sk->sk_receive_queue) ||
+	       sk_busy_loop_timeout(sk, start_time);
+}
+EXPORT_SYMBOL(sk_busy_loop_end);
+#endif /* CONFIG_NET_RX_BUSY_POLL */

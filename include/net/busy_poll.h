@@ -33,46 +33,79 @@ struct napi_struct;
 extern unsigned int sysctl_net_busy_read __read_mostly;
 extern unsigned int sysctl_net_busy_poll __read_mostly;
 
-/* return values from ndo_ll_poll */
-#define LL_FLUSH_FAILED		-1
-#define LL_FLUSH_BUSY		-2
+/*		0 - Reserved to indicate value not set
+ *     1..NR_CPUS - Reserved for sender_cpu
+ *  NR_CPUS+1..~0 - Region available for NAPI IDs
+ */
+#define MIN_NAPI_ID ((unsigned int)(NR_CPUS + 1))
 
 static inline bool net_busy_loop_on(void)
 {
 	return READ_ONCE(sysctl_net_busy_poll);
 }
 
-static inline u64 busy_loop_us_clock(void)
-{
-	return local_clock() >> 10;
-}
-
-static inline unsigned long sk_busy_loop_end_time(struct sock *sk)
-{
-	return busy_loop_us_clock() + ACCESS_ONCE(sk->sk_ll_usec);
-}
-
-/* in poll/select we use the global sysctl_net_ll_poll value */
-static inline unsigned long busy_loop_end_time(void)
-{
-	return busy_loop_us_clock() + ACCESS_ONCE(sysctl_net_busy_poll);
-}
-
 static inline bool sk_can_busy_loop(struct sock *sk)
 {
-	return sk->sk_ll_usec && sk->sk_napi_id &&
+	return sk->sk_ll_usec &&
 	       !need_resched() && !signal_pending(current);
 }
 
+bool sk_busy_loop_end(void *p, unsigned long start_time);
 
-static inline bool busy_loop_timeout(unsigned long end_time)
+void napi_busy_loop(unsigned int napi_id,
+		    bool (*loop_end)(void *, unsigned long),
+		    void *loop_end_arg);
+
+static inline unsigned long busy_loop_current_time(void)
 {
-	unsigned long now = busy_loop_us_clock();
-
-	return time_after(now, end_time);
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	return (unsigned long)(local_clock() >> 10);
+#else
+	return 0;
+#endif
 }
 
-bool sk_busy_loop(struct sock *sk, int nonblock);
+static inline void sk_busy_loop(struct sock *sk, int nonblock)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int napi_id = READ_ONCE(sk->sk_napi_id);
+
+	if (napi_id >= MIN_NAPI_ID)
+		napi_busy_loop(napi_id, nonblock ? NULL : sk_busy_loop_end, sk);
+#endif
+}
+
+/* in poll/select we use the global sysctl_net_ll_poll value */
+static inline bool busy_loop_timeout(unsigned long start_time)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned long bp_usec = READ_ONCE(sysctl_net_busy_poll);
+
+	if (bp_usec) {
+		unsigned long end_time = start_time + bp_usec;
+		unsigned long now = busy_loop_current_time();
+
+		return time_after(now, end_time);
+	}
+#endif
+	return true;
+}
+
+static inline bool sk_busy_loop_timeout(struct sock *sk,
+					unsigned long start_time)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned long bp_usec = READ_ONCE(sk->sk_ll_usec);
+
+	if (bp_usec) {
+		unsigned long end_time = start_time + bp_usec;
+		unsigned long now = busy_loop_current_time();
+
+		return time_after(now, end_time);
+	}
+#endif
+	return true;
+}
 
 /* used in the NIC receive handler to mark the skb */
 static inline void skb_mark_napi_id(struct sk_buff *skb,
@@ -93,31 +126,7 @@ static inline unsigned long net_busy_loop_on(void)
 	return 0;
 }
 
-static inline unsigned long busy_loop_end_time(void)
-{
-	return 0;
-}
-
 static inline bool sk_can_busy_loop(struct sock *sk)
-{
-	return false;
-}
-
-static inline void skb_mark_napi_id(struct sk_buff *skb,
-				    struct napi_struct *napi)
-{
-}
-
-static inline void sk_mark_napi_id(struct sock *sk, struct sk_buff *skb)
-{
-}
-
-static inline bool busy_loop_timeout(unsigned long end_time)
-{
-	return true;
-}
-
-static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 {
 	return false;
 }

@@ -29,8 +29,6 @@ bit 6,7: Where this packet was last seen
 1: on the Ingress
 2: on the Egress
 
-bit 8: when set --> Request not to classify on ingress. 
-
 bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
 
  *
@@ -44,10 +42,6 @@ bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
 #define AT_STACK	0x0
 #define AT_INGRESS	0x1
 #define AT_EGRESS	0x2
-
-#define TC_NCLS          _TC_MAKEMASK1(8)
-#define SET_TC_NCLS(v)   ( TC_NCLS | (v & ~TC_NCLS))
-#define CLR_TC_NCLS(v)   ( v & ~TC_NCLS)
 
 #define S_TC_AT          _TC_MAKE32(12)
 #define M_TC_AT          _TC_MAKEMASK(2,S_TC_AT)
@@ -89,7 +83,13 @@ enum {
 #define TC_ACT_QUEUED		5
 #define TC_ACT_REPEAT		6
 #define TC_ACT_REDIRECT		7
-#define TC_ACT_JUMP		0x10000000
+#define TC_ACT_TRAP		8 /* For hw path, this means "trap to cpu"
+				   * and don't further process the frame
+				   * in hardware. For sw path, this is
+				   * equivalent of TC_ACT_STOLEN - drop
+				   * the skb and act like everything
+				   * is alright.
+				   */
 
 /* Action type identifiers*/
 enum {
@@ -397,6 +397,8 @@ enum {
 	TCA_BPF_NAME,
 	TCA_BPF_FLAGS,
 	TCA_BPF_FLAGS_GEN,
+	TCA_BPF_TAG,
+	TCA_BPF_ID,
 	__TCA_BPF_MAX,
 };
 

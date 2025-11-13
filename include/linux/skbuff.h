@@ -15,7 +15,6 @@
 #define _LINUX_SKBUFF_H
 
 #include <linux/kernel.h>
-#include <linux/kmemcheck.h>
 #include <linux/compiler.h>
 #include <linux/time.h>
 #include <linux/bug.h>
@@ -589,6 +588,7 @@ static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
  *	@pkt_type: Packet class
  *	@fclone: skbuff clone status
  *	@ipvs_property: skbuff is owned by ipvs
+ *	@tc_skip_classify: do not classify packet. set by IFB device
  *	@peeked: this packet has been seen already, so stats have been
  *		done for it, don't do them again
  *	@nf_trace: netfilter packet trace flag
@@ -680,7 +680,6 @@ struct sk_buff {
 	/* Following fields are _not_ copied in __copy_skb_header()
 	 * Note that queue_mapping is here mostly to fill a hole.
 	 */
-	kmemcheck_bitfield_begin(flags1);
 	__u16			queue_mapping;
 
 /* if you move cloned around you also must adapt those constants */
@@ -699,7 +698,6 @@ struct sk_buff {
 				head_frag:1,
 				xmit_more:1,
 				pfmemalloc:1;
-	kmemcheck_bitfield_end(flags1);
 
 	/* fields enclosed in headers_start/headers_end are copied
 	 * using a single memcpy() in __copy_skb_header()
@@ -736,7 +734,8 @@ struct sk_buff {
 	__u8			csum_valid:1;
 	__u8			csum_complete_sw:1;
 	__u8			csum_level:2;
-	__u8			csum_bad:1;
+	__u8			__csum_bad_unused:1; /* one bit hole */
+
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
@@ -751,7 +750,9 @@ struct sk_buff {
 #ifdef CONFIG_NET_SWITCHDEV
 	__u8			offload_fwd_mark:1;
 #endif
-	/* 2, 4 or 5 bit hole */
+#ifdef CONFIG_NET_CLS_ACT
+	__u8			tc_skip_classify:1;
+#endif
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -905,6 +906,15 @@ static inline struct rtable *skb_rtable(const struct sk_buff *skb)
 static inline bool skb_pkt_type_ok(u32 ptype)
 {
 	return ptype <= PACKET_OTHERHOST;
+}
+
+static inline unsigned int skb_napi_id(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	return skb->napi_id;
+#else
+	return 0;
+#endif
 }
 
 void kfree_skb(struct sk_buff *skb);
@@ -2197,6 +2207,11 @@ static inline unsigned char *skb_mac_header(const struct sk_buff *skb)
 	return skb->head + skb->mac_header;
 }
 
+static inline u32 skb_mac_header_len(const struct sk_buff *skb)
+{
+	return skb->network_header - skb->mac_header;
+}
+
 static inline int skb_mac_header_was_set(const struct sk_buff *skb)
 {
 	return skb->mac_header != (typeof(skb->mac_header))~0U;
@@ -3407,21 +3422,6 @@ static inline void __skb_incr_checksum_unnecessary(struct sk_buff *skb)
 	}
 }
 
-static inline void __skb_mark_checksum_bad(struct sk_buff *skb)
-{
-	/* Mark current checksum as bad (typically called from GRO
-	 * path). In the case that ip_summed is CHECKSUM_NONE
-	 * this must be the first checksum encountered in the packet.
-	 * When ip_summed is CHECKSUM_UNNECESSARY, this is the first
-	 * checksum after the last one validated. For UDP, a zero
-	 * checksum can not be marked as bad.
-	 */
-
-	if (skb->ip_summed == CHECKSUM_NONE ||
-	    skb->ip_summed == CHECKSUM_UNNECESSARY)
-		skb->csum_bad = 1;
-}
-
 /* Check if we need to perform checksum complete validation.
  *
  * Returns true if checksum complete is needed, false otherwise
@@ -3475,9 +3475,6 @@ static inline __sum16 __skb_checksum_validate_complete(struct sk_buff *skb,
 			skb->csum_valid = 1;
 			return 0;
 		}
-	} else if (skb->csum_bad) {
-		/* ip_summed == CHECKSUM_NONE in this case */
-		return (__force __sum16)1;
 	}
 
 	skb->csum = psum;
@@ -3537,8 +3534,7 @@ static inline __wsum null_compute_pseudo(struct sk_buff *skb, int proto)
 
 static inline bool __skb_checksum_convert_check(struct sk_buff *skb)
 {
-	return (skb->ip_summed == CHECKSUM_NONE &&
-		skb->csum_valid && !skb->csum_bad);
+	return (skb->ip_summed == CHECKSUM_NONE && skb->csum_valid);
 }
 
 static inline void __skb_checksum_convert(struct sk_buff *skb,

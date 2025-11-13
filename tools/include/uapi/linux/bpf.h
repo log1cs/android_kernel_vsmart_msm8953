@@ -30,9 +30,14 @@
 #define BPF_FROM_LE	BPF_TO_LE
 #define BPF_FROM_BE	BPF_TO_BE
 
+/* jmp encodings */
 #define BPF_JNE		0x50	/* jump != */
+#define BPF_JLT		0xa0	/* LT is unsigned, '<' */
+#define BPF_JLE		0xb0	/* LE is unsigned, '<=' */
 #define BPF_JSGT	0x60	/* SGT is signed '>', GT in x86 */
 #define BPF_JSGE	0x70	/* SGE is signed '>=', GE in x86 */
+#define BPF_JSLT	0xc0	/* SLT is signed, '<' */
+#define BPF_JSLE	0xd0	/* SLE is signed, '<=' */
 #define BPF_CALL	0x80	/* function call */
 #define BPF_EXIT	0x90	/* function return */
 
@@ -104,6 +109,8 @@ enum bpf_prog_type {
 enum bpf_attach_type {
 	BPF_CGROUP_INET_INGRESS,
 	BPF_CGROUP_INET_EGRESS,
+	BPF_SK_SKB_STREAM_PARSER,
+	BPF_SK_SKB_STREAM_VERDICT,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -114,6 +121,13 @@ enum bpf_attach_type {
  * override effective bpf program that was inherited from this cgroup
  */
 #define BPF_F_ALLOW_OVERRIDE	(1U << 0)
+
+/* If BPF_F_STRICT_ALIGNMENT is used in BPF_PROG_LOAD command, the
+ * verifier will perform strict alignment checking as if the kernel
+ * has been built with CONFIG_EFFICIENT_UNALIGNED_ACCESS not set,
+ * and NET_IP_ALIGN defined to 2.
+ */
+#define BPF_F_STRICT_ALIGNMENT	(1U << 0)
 
 #define BPF_PSEUDO_MAP_FD	1
 
@@ -156,6 +170,7 @@ union bpf_attr {
 		__u32		log_size;	/* size of user buffer */
 		__aligned_u64	log_buf;	/* user supplied buffer */
 		__u32		kern_version;	/* checked when prog_type=kprobe */
+		__u32		prog_flags;
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */
@@ -416,106 +431,6 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_current_task_under_cgroup,
 
-	/**
-	 * bpf_skb_change_tail(skb, len, flags)
-	 * The helper will resize the skb to the given new size,
-	 * to be used f.e. with control messages.
-	 * @skb: pointer to skb
-	 * @len: new skb length
-	 * @flags: reserved
-	 * Return: 0 on success or negative error
-	 */
-	BPF_FUNC_skb_change_tail,
-
-	/**
-	 * bpf_skb_pull_data(skb, len)
-	 * The helper will pull in non-linear data in case the
-	 * skb is non-linear and not all of len are part of the
-	 * linear section. Only needed for read/write with direct
-	 * packet access.
-	 * @skb: pointer to skb
-	 * @len: len to make read/writeable
-	 * Return: 0 on success or negative error
-	 */
-	BPF_FUNC_skb_pull_data,
-
-	/**
-	 * bpf_csum_update(skb, csum)
-	 * Adds csum into skb->csum in case of CHECKSUM_COMPLETE.
-	 * @skb: pointer to skb
-	 * @csum: csum to add
-	 * Return: csum on success or negative error
-	 */
-	BPF_FUNC_csum_update,
-
-	/**
-	 * bpf_set_hash_invalid(skb)
-	 * Invalidate current skb>hash.
-	 * @skb: pointer to skb
-	 */
-	BPF_FUNC_set_hash_invalid,
-
-	/**
-	 * int bpf_get_numa_node_id()
-	 *     Return: Id of current NUMA node.
-	 */
-	BPF_FUNC_get_numa_node_id,
-
-	/**
-	 * int bpf_skb_change_head()
-	 *     Grows headroom of skb and adjusts MAC header offset accordingly.
-	 *     Will extends/reallocae as required automatically.
-	 *     May change skb data pointer and will thus invalidate any check
-	 *     performed for direct packet access.
-	 *     @skb: pointer to skb
-	 *     @len: length of header to be pushed in front
-	 *     @flags: Flags (unused for now)
-	 *     Return: 0 on success or negative error
-	 */
-	BPF_FUNC_skb_change_head,
-
-	/**
-	 * int bpf_xdp_adjust_head(xdp_md, delta)
-	 *     Adjust the xdp_md.data by delta
-	 *     @xdp_md: pointer to xdp_md
-	 *     @delta: An positive/negative integer to be added to xdp_md.data
-	 *     Return: 0 on success or negative on error
-	 */
-	BPF_FUNC_xdp_adjust_head,
-
-	/**
-	 * int bpf_probe_read_str(void *dst, int size, const void *unsafe_ptr)
-	 *     Copy a NUL terminated string from unsafe address. In case the string
-	 *     length is smaller than size, the target is not padded with further NUL
-	 *     bytes. In case the string length is larger than size, just count-1
-	 *     bytes are copied and the last byte is set to NUL.
-	 *     @dst: destination address
-	 *     @size: maximum number of bytes to copy, including the trailing NUL
-	 *     @unsafe_ptr: unsafe address
-	 *     Return:
-	 *       > 0 length of the string including the trailing NUL on success
-	 *       < 0 error
-	 */
-	BPF_FUNC_probe_read_str,
-
-	/**
-	 * u64 bpf_bpf_get_socket_cookie(skb)
-	 *     Get the cookie for the socket stored inside sk_buff.
-	 *     @skb: pointer to skb
-	 *     Return: 8 Bytes non-decreasing number on success or 0 if the socket
-	 *     field is missing inside sk_buff
-	 */
-	BPF_FUNC_get_socket_cookie,
-
-	/**
-	 * u32 bpf_get_socket_uid(skb)
-	 *     Get the owner uid of the socket stored inside sk_buff.
-	 *     @skb: pointer to skb
-	 *     Return: uid of the socket owner on success or 0 if the socket pointer
-	 *     inside sk_buff is NULL
-	 */
-	BPF_FUNC_get_socket_uid,
-
 	__BPF_FUNC_MAX_ID,
 };
 
@@ -577,6 +492,7 @@ struct __sk_buff {
 	__u32 tc_classid;
 	__u32 data;
 	__u32 data_end;
+	__u32 napi_id;
 };
 
 struct bpf_tunnel_key {

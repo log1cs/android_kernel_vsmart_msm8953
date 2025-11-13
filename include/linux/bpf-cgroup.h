@@ -7,6 +7,7 @@
 struct sock;
 struct cgroup;
 struct sk_buff;
+struct bpf_sock_ops_kern;
 
 #ifdef CONFIG_CGROUP_BPF
 
@@ -50,33 +51,62 @@ int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 		      enum bpf_attach_type type, u32 flags);
 
-int __cgroup_bpf_run_filter(struct sock *sk,
-			    struct sk_buff *skb,
-			    enum bpf_attach_type type);
+int __cgroup_bpf_run_filter_skb(struct sock *sk,
+				struct sk_buff *skb,
+				enum bpf_attach_type type);
 
-/* Wrappers for __cgroup_bpf_run_filter() guarded by cgroup_bpf_enabled. */
-#define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb)			\
-({									\
-	int __ret = 0;							\
-	if (cgroup_bpf_enabled)						\
-		__ret = __cgroup_bpf_run_filter(sk, skb,		\
-						BPF_CGROUP_INET_INGRESS); \
-									\
-	__ret;								\
+int __cgroup_bpf_run_filter_sk(struct sock *sk,
+			       enum bpf_attach_type type);
+
+int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
+				     struct bpf_sock_ops_kern *sock_ops,
+				     enum bpf_attach_type type);
+
+/* Wrappers for __cgroup_bpf_run_filter_skb() guarded by cgroup_bpf_enabled. */
+#define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk, skb)			      \
+({									      \
+	int __ret = 0;							      \
+	if (cgroup_bpf_enabled)						      \
+		__ret = __cgroup_bpf_run_filter_skb(sk, skb,		      \
+						    BPF_CGROUP_INET_INGRESS); \
+									      \
+	__ret;								      \
 })
 
-#define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk,skb)				\
-({									\
-	int __ret = 0;							\
-	if (cgroup_bpf_enabled && sk && sk == skb->sk) {		\
-		typeof(sk) __sk = sk_to_full_sk(sk);			\
-		if (sk_fullsock(__sk))					\
-			__ret = __cgroup_bpf_run_filter(__sk, skb,	\
-						BPF_CGROUP_INET_EGRESS); \
-	}								\
-	__ret;								\
+#define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk, skb)			       \
+({									       \
+	int __ret = 0;							       \
+	if (cgroup_bpf_enabled && sk && sk == skb->sk) {		       \
+		typeof(sk) __sk = sk_to_full_sk(sk);			       \
+		if (sk_fullsock(__sk))					       \
+			__ret = __cgroup_bpf_run_filter_skb(__sk, skb,	       \
+						      BPF_CGROUP_INET_EGRESS); \
+	}								       \
+	__ret;								       \
 })
 
+#define BPF_CGROUP_RUN_PROG_INET_SOCK(sk)				       \
+({									       \
+	int __ret = 0;							       \
+	if (cgroup_bpf_enabled && sk) {					       \
+		__ret = __cgroup_bpf_run_filter_sk(sk,			       \
+						 BPF_CGROUP_INET_SOCK_CREATE); \
+	}								       \
+	__ret;								       \
+})
+
+#define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops)				       \
+({									       \
+	int __ret = 0;							       \
+	if (cgroup_bpf_enabled && (sock_ops)->sk) {	       \
+		typeof(sk) __sk = sk_to_full_sk((sock_ops)->sk);	       \
+		if (__sk && sk_fullsock(__sk))				       \
+			__ret = __cgroup_bpf_run_filter_sock_ops(__sk,	       \
+								 sock_ops,     \
+							 BPF_CGROUP_SOCK_OPS); \
+	}								       \
+	__ret;								       \
+})
 #else
 
 struct cgroup_bpf {};
@@ -85,6 +115,8 @@ static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk,skb) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_INET_SOCK(sk) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops) ({ 0; })
 
 #endif /* CONFIG_CGROUP_BPF */
 

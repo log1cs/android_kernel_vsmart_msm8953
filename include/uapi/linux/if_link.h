@@ -157,6 +157,7 @@ enum {
 	IFLA_GSO_MAX_SIZE,
 	IFLA_PAD,
 	IFLA_XDP,
+	IFLA_EVENT,
 	__IFLA_MAX
 };
 
@@ -884,13 +885,31 @@ enum {
 
 /* XDP section */
 
+#define XDP_FLAGS_UPDATE_IF_NOEXIST	(1U << 0)
+#define XDP_FLAGS_SKB_MODE		(1U << 1)
+#define XDP_FLAGS_DRV_MODE		(1U << 2)
+#define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_NOEXIST | \
+					 XDP_FLAGS_SKB_MODE | \
+					 XDP_FLAGS_DRV_MODE)
+
 enum {
 	IFLA_XDP_UNSPEC,
 	IFLA_XDP_FD,
 	IFLA_XDP_ATTACHED,
+	IFLA_XDP_FLAGS,
 	__IFLA_XDP_MAX,
 };
 
 #define IFLA_XDP_MAX (__IFLA_XDP_MAX - 1)
+
+enum {
+	IFLA_EVENT_NONE,
+	IFLA_EVENT_REBOOT,		/* internal reset / reboot */
+	IFLA_EVENT_FEATURES,		/* change in offload features */
+	IFLA_EVENT_BONDING_FAILOVER,	/* change in active slave */
+	IFLA_EVENT_NOTIFY_PEERS,	/* re-sent grat. arp/ndisc */
+	IFLA_EVENT_IGMP_RESEND,		/* re-sent IGMP JOIN */
+	IFLA_EVENT_BONDING_OPTIONS,	/* change in bonding options */
+};
 
 #endif /* _UAPI_LINUX_IF_LINK_H */

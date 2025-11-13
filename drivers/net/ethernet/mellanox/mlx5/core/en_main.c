@@ -494,7 +494,13 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	rq->channel = c;
 	rq->ix      = c->ix;
 	rq->priv    = c->priv;
-	rq->xdp_prog = priv->xdp_prog;
+
+	rq->xdp_prog = priv->xdp_prog ? bpf_prog_inc(priv->xdp_prog) : NULL;
+	if (IS_ERR(rq->xdp_prog)) {
+		err = PTR_ERR(rq->xdp_prog);
+		rq->xdp_prog = NULL;
+		goto err_rq_wq_destroy;
+	}
 
 	rq->buff.map_dir = DMA_FROM_DEVICE;
 	if (rq->xdp_prog)
@@ -571,12 +577,11 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	rq->page_cache.head = 0;
 	rq->page_cache.tail = 0;
 
-	if (rq->xdp_prog)
-		bpf_prog_add(rq->xdp_prog, 1);
-
 	return 0;
 
 err_rq_wq_destroy:
+	if (rq->xdp_prog)
+		bpf_prog_put(rq->xdp_prog);
 	mlx5_wq_destroy(&rq->wq_ctrl);
 
 	return err;
@@ -3118,6 +3123,11 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	int err = 0;
 	bool reset, was_opened;
 	int i;
+
+	if (prog && prog->xdp_adjust_head) {
+		netdev_err(netdev, "Does not support bpf_xdp_adjust_head()\n");
+		return -EOPNOTSUPP;
+	}
 
 	mutex_lock(&priv->state_lock);
 
